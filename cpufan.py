@@ -10,17 +10,23 @@ import logging
 
 
 
-pin = 1
-maxTMP = 40
+pin = 22        # GPIO pin number for FAN transistor control
+maxTMP = 55     # Temperature of CPU when FAN turns ON
 procs = []
 FIB_N = 100
+fan_flip = 0    # timestamp for fan switch calculations
+flip_interval = 60      # defines minimum time in seconds for FAN to flip switch
+load_interval = 600     # duration of CPU full load. In seconds
+cooldown_temp = 45      # Temperature of CPU when FAN turns OFF.
 
 
 def setup():
-	GPIO.setmode(GPIO.BCM)
-	GPIO.setup(pin, GPIO.OUT)
-	GPIO.setwarnings(False)
-	return()
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.setwarnings(False)
+        global fan_flip
+        fan_flip = time.monotonic()
+        return()
 
 def getCPUtemperature():
 	res = os.popen('vcgencmd measure_temp').readline()
@@ -55,6 +61,10 @@ def CPUmax():
                 procs.append(proc)
         return()
 
+def CPUmin():
+        for p in procs:
+                p.terminate()
+
 def CPUusage():
         CPU_Pct = psutil.cpu_percent()
         #print(CPU_Pct)
@@ -65,30 +75,46 @@ def logg(msg):
         logging.info(msg)
         
 def setPin(mode): # useful if you want to add logging
-    GPIO.output(pin, mode)
-    return()
+        GPIO.output(pin, mode)
+        return()
 
 def fanON():
-    setPin(True)
-    return()
+        global fan_flip
+        last_flip = (time.monotonic() - fan_flip)       # Only flip the switch once every 60 seconds
+        logg("flip time %0.2f" %last_flip)
+        if last_flip > flip_interval:
+                setPin(True)
+                logg("Fan ON")
+                fan_flip = time.monotonic()     # Reset flip timer
+        return()
 
 def fanOFF():
-    setPin(False)
-    return()
+        global fan_flip
+        last_flip = (time.monotonic() - fan_flip)       # Only flip the switch once every 60 seconds
+        if last_flip > flip_interval:
+                setPin(False)
+                logg("Fan OFF")
+                fan_flip = time.monotonic()     # Reset flip timer
+        return()
 
 logging.basicConfig(filename = "CPUtest.log", level = logging.INFO)
 
 try:
-	count = 0
-	tempsum = 0
-	ts = time.time()
-	st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-	lowest_temp = getCPUtemperature()
-	ltemp_time =  str(st)
-	highest_temp = getCPUtemperature()
-	htemp_time =  str(st)
-	CPUmax()
-	while True:
+        setup()
+        count = 0
+        tempsum = 0
+        ts = time.time()
+        st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        lowest_temp = getCPUtemperature()
+        ltemp_time =  str(st)
+        highest_temp = getCPUtemperature()
+        htemp_time =  str(st)
+
+        CPUmax()        # Turn ON full load on all CPU cores
+        logg("CPU load set to MAX")
+        cpu_load = time.monotonic()
+
+        while True:
                 CPU_freq = getCPUfrequency() / 1000
                 temp = getCPUtemperature()
                 ts = time.time()
@@ -98,30 +124,26 @@ try:
                 logg("CPU usage: %0.1f" %(CPUusage()))
                 tempsum += temp
                 count += 1
-                if temp > highest_temp:
+                if temp > highest_temp:         # Records highest temp
                         highest_temp = temp
                         htemp_time =  st
-                if temp < lowest_temp:
+                if temp < lowest_temp:          # Records lowest temp
                         lowest_temp = temp
                         ltemp_time =  st
+                if temp > maxTMP:       # CPU temp above max temperature set
+                        fanON()
+                elif temp < cooldown_temp:     # Turns fan off only if CPU temp is lower then cooldown_temp.
+                        fanOFF()
+                if (time.monotonic() - cpu_load) > load_interval:       # Only runs CPU load for period of time
+                        logg("CPU load turned OFF")
+                        CPUmin()
                 sleep(1)
         
-except KeyboardInterrupt:
+except KeyboardInterrupt:       # Gracefull shutdown
         logg("Average temp was %0.2f C" %(tempsum/count))
         logg("Highest temp: %0.2f C at %s" %(highest_temp, htemp_time))
         logg("Lowest temp: %0.2f C at %s" %(lowest_temp, ltemp_time))
         logg("Number of Cores %d" % len(procs))
-        for p in procs:
-                p.terminate()
+        CPUmin()
         logg("Processes terminated")
-
-#setup()
-#fanOFF()
-#print("FAN OFF")
-#sleep(30)
-#fanON()
-#print("FAN ON")
-#sleep(30)
-#fanOFF()
-#print("FAN OFF")
-#test
+        fanOFF()
