@@ -54,20 +54,20 @@ def fanOFF():
         logging.info("Fan OFF")
         return()
 
+
+setup()
+count = 0
+tempsum = 0
+ts = time.time()
+st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+lowest_temp = getCPUtemperature()
+ltemp_time =  str(st)
+highest_temp = getCPUtemperature()
+htemp_time =  str(st)
 try:
-        setup()
-        count = 0
-        tempsum = 0
-        ts = time.time()
-        st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-        lowest_temp = getCPUtemperature()
-        ltemp_time =  str(st)
-        highest_temp = getCPUtemperature()
-        htemp_time =  str(st)
-        logfile = logFolder + datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d') + ".log"
-        logging.basicConfig(filename = logfile, level = logging.INFO)
-        logging.info("Monitoring CPU temp...")
         while True:
+                logfile = logFolder + datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d') + ".log"
+                logging.basicConfig(filename = logfile, level = logging.INFO)
                 CPU_freq = getCPUfrequency() / 1000
                 temp = getCPUtemperature()
                 ts = time.time()
@@ -90,7 +90,7 @@ try:
                 elif temp < cooldown_temp:     # Turns fan off only if CPU temp is lower then cooldown_temp.
                         fanOFF()
                 sleep(refreshRate)
-except KeyboardInterrupt:       # Gracefull shutdown
+except:       # Gracefull shutdown
         logging.info("Average temp was %0.2f C" %(tempsum/count))
         logging.info("Highest temp: %0.2f C at %s" %(highest_temp, htemp_time))
         logging.info("Lowest temp: %0.2f C at %s" %(lowest_temp, ltemp_time))
