@@ -72,10 +72,11 @@ try:
                 temp = getCPUtemperature()
                 ts = time.time()
                 st = str(datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'))
-                logging.info("-------------------------\n%s" %st)
-                logging.info("Temp: %.2f C" %temp)
-                logging.info("CPU freq: %0.0f Mhz" %(CPU_freq))
-                logging.info("CPU usage: %0.1f" %(CPUusage()))
+                cpuUsage = CPUusage()
+                logging.info("---------------------------------------")
+                logging.info(st)
+                logging.info("Temp('C)    CPU freq(Mhz)  CPU usage(%)")
+                logging.info(" %.02f          %0.0f           %0.1f" %(temp, CPU_freq, cpuUsage))
                 tempsum += temp
                 count += 1
                 if temp > highest_temp:         # Records highest temp
