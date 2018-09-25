@@ -1,10 +1,10 @@
-# Monitors CPU temp and turn ON fan on GPIO 21 when CPU temp > 55, turns it OFF once it's back below 45 'C
+# Monitors CPU temp. Turns ON fan on GPIO 21 when CPU temp > 55, turns it OFF once it's back below 45 'C
 
 # 1. run: crontab -e
 # 2. append: @reboot python3 /home/pi/cpufan.py
 # 3. Save and Exit
 # 4. Reboot Raspberry PI
-# 5. Check for running script by running: tail -f /home/pi/<YYY-MM-DD>.log file. Relace YYY-MM-DD in file name with current date of course.
+# 5. Check for running script by running: tail -f /home/pi/.cpuTempLog/<YYY-MM-DD>.log file. Relace YYY-MM-DD in file name with current date of course.
 
 import os
 from time import sleep
@@ -46,12 +46,12 @@ def CPUusage():
         
 def fanON():
         GPIO.output(pin,True)
-        logging.info("Fan ON\n")
+        logging.info("Fan ON")
         return()
 
 def fanOFF():
         GPIO.output(pin,False)
-        logging.info("Fan OFF\n")
+        logging.info("Fan OFF")
         return()
 
 try:
@@ -72,10 +72,10 @@ try:
                 temp = getCPUtemperature()
                 ts = time.time()
                 st = str(datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'))
-                logging.info("%s \n-------------------------\n" %st)
+                logging.info("-------------------------\n%s" %st)
                 logging.info("Temp: %.2f C" %temp)
                 logging.info("CPU freq: %0.0f Mhz" %(CPU_freq))
-                logging.info("CPU usage: %0.1f\n" %(CPUusage()))
+                logging.info("CPU usage: %0.1f" %(CPUusage()))
                 tempsum += temp
                 count += 1
                 if temp > highest_temp:         # Records highest temp
@@ -88,9 +88,7 @@ try:
                         fanON()
                 elif temp < cooldown_temp:     # Turns fan off only if CPU temp is lower then cooldown_temp.
                         fanOFF()
-               
                 sleep(refreshRate)
-        
 except KeyboardInterrupt:       # Gracefull shutdown
         logging.info("Average temp was %0.2f C" %(tempsum/count))
         logging.info("Highest temp: %0.2f C at %s" %(highest_temp, htemp_time))
